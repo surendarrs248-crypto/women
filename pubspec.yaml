@@ -1,0 +1,82 @@
+name: womenempowermentsafety
+description: "A new Flutter project."
+# The following line prevents the package from being accidentally published to
+# pub.dev using `flutter pub publish`. This is preferred for private packages.
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+# The following defines the version and build number for your application.
+# A version number is three numbers separated by dots, like 1.2.43
+# followed by an optional build number separated by a +.
+# Both the version and the builder number may be overridden in flutter
+# build by specifying --build-name and --build-number, respectively.
+# In Android, build-name is used as versionName while build-number used as versionCode.
+# Read more about Android versioning at https://developer.android.com/studio/publish/versioning
+# In iOS, build-name is used as CFBundleShortVersionString while build-number is used as CFBundleVersion.
+# Read more about iOS versioning at
+# https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
+# In Windows, build-name is used as the major, minor, and patch parts
+# of the product and file versions while build-number is used as the build suffix.
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State
+  provider: ^6.1.2
+
+  # Firebase (cloud sync — app runs fully offline if not configured)
+  firebase_core: ^3.8.0
+  firebase_auth: ^5.3.3
+  cloud_firestore: ^5.5.0
+  firebase_storage: ^12.4.10          # matches firebase_core ^3.x — do NOT bump to 13.x without bumping firebase_core too
+
+  # Maps (Leaflet equivalent — OSM tiles, no API key)
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+
+  # Location
+  geolocator: ^13.0.2
+
+  # Sensors — shake-to-SOS
+  sensors_plus: ^6.1.1
+
+  # Evidence — audio + photo (Updated to clear record_linux compile mismatch)
+  record: ^6.1.1
+  image_picker: ^1.1.2
+  path: ^1.9.0                        # used directly by evidence_service.dart's path.basename()
+
+  # Audio — synthesized siren / ringtone / beeps (zero bundled assets)
+  audioplayers: ^6.1.0
+
+  # Device
+  vibration: ^2.0.1
+  wakelock_plus: ^1.2.8
+
+  # Connectivity — offline queue flush trigger
+  connectivity_plus: ^7.0.0
+
+  # Persistence (localStorage equivalent)
+  shared_preferences: ^2.3.3
+  path_provider: ^2.1.5
+
+  # Deep links out — tel: / sms: / wa.me / OSM directions
+  url_launcher: ^6.3.1
+  share_plus: ^10.1.2
+
+  # SMS — Android-only, requires SEND_SMS (Play Store restricted permission).
+  # AppState already sends alerts via url_launcher's sms: scheme instead;
+  # only add this if emergency_contacts_service.dart is reworked to match
+  # that approach, or if you've registered SAKHI as a default SMS handler.
+  # telephony: ^0.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
