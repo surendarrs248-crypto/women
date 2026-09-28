@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -529,9 +530,38 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void startFakeCall() => toast('Fake call is not configured on this build');
+  Future<void> startFakeCall() async {
+    try {
+      await launch(Uri(scheme: 'tel', path: '112'));
+      toast('Emergency call launched');
+    } catch (_) {
+      toast('Could not launch emergency call');
+    }
+  }
 
-  void capturePhoto() => toast('Camera access is not configured on this build');
+  Future<void> capturePhoto() async {
+    try {
+      final picker = ImagePicker();
+      final image = await picker.pickImage(
+        source: ImageSource.camera,
+        preferredCameraDevice: CameraDevice.rear,
+        imageQuality: 85,
+      );
+      if (image == null) {
+        toast('No photo captured');
+        return;
+      }
+      final path = image.path;
+      final current = session;
+      if (current != null) {
+        current.evidence.add(EvidenceItem('Photo evidence', path, 'image'));
+      }
+      toast('Evidence captured');
+      notifyListeners();
+    } catch (_) {
+      toast('Camera access was not available');
+    }
+  }
 
   void enableMotion() {
     motionArmed = true;
