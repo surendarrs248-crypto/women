@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -11,6 +12,7 @@ import '../core/utils.dart';
 import '../models/models.dart';
 import '../services/cloud_service.dart';
 import '../services/geo_engine.dart';
+import '../services/sos_handler.dart';
 import '../services/shake_detector.dart';
 import '../services/storage_service.dart';
 
@@ -57,7 +59,8 @@ class GuardianTarget {
 }
 
 class DemoGeoState {
-  bool demo = true;
+  bool demo;
+  DemoGeoState({this.demo = true});
 }
 
 class AppState extends ChangeNotifier {
@@ -78,8 +81,12 @@ class AppState extends ChangeNotifier {
   String jClockText = '00:00';
   String accText = 'DEMO';
   String? remoteWatchId;
-  final DemoGeoState geo = DemoGeoState();
-  final UserProfile profile = UserProfile(name: 'Ananya', phone: '+919900112233');
+  final DemoGeoState geo;
+  bool hasRealFix = false;
+  final UserProfile profile = UserProfile(
+    name: 'Ananya',
+    phone: '+919900112233',
+  );
   final List<GuardianContact> contacts = [];
   final List<SosSession> _sessions = [];
   final List<UnsafeReport> _reports = [];
@@ -89,11 +96,12 @@ class AppState extends ChangeNotifier {
   List<SosEvent> _remoteEvents = [];
   late final GeoEngine _geoEngine;
   final ShakeDetector _shakeDetector = ShakeDetector();
+  late final SosHandler _sosHandler = SosHandler(firestore: cloud?.db);
   StreamSubscription<List<RemoteAlert>>? _remoteAlertsSub;
   StreamSubscription<RemoteAlert?>? _remoteAlertSub;
   StreamSubscription<List<TrackPoint>>? _remotePathSub;
   StreamSubscription<List<SosEvent>>? _remoteEventsSub;
-  LatLng? lastPos = blr;
+  LatLng? lastPos;
   JourneyPlan? journey;
   Timer? _journeyTimer;
   Timer? _toastTimer;
@@ -101,11 +109,15 @@ class AppState extends ChangeNotifier {
   int _alertCounter = 1234;
   double spd = 0;
 
-  AppState({this.storage, this.cloud}) {
+  AppState({this.storage, this.cloud, bool demo = true})
+    : geo = DemoGeoState(demo: demo) {
+    lastPos = demo ? blr : null;
+    accText = demo ? 'DEMO' : 'GPS...';
     _restoreSavedState();
     _geoEngine = GeoEngine(
       onPosition: (lat, lng, accuracy) {
         lastPos = LatLng(lat, lng);
+        hasRealFix = !geo.demo;
         accText = '${accuracy.round()} m';
         spd = geo.demo ? 3.2 : spd;
         if (journey?.stillSince == null) _appendPoint();
@@ -114,6 +126,7 @@ class AppState extends ChangeNotifier {
       },
       onError: (message) {
         geo.demo = true;
+        hasRealFix = false;
         accText = 'DEMO';
         toast(message);
       },
@@ -121,30 +134,33 @@ class AppState extends ChangeNotifier {
     _geoEngine.demo = geo.demo;
     _geoEngine.start();
     if (cloud != null) {
-      _remoteAlertsSub = cloud!.alertsStream().listen(
-        (alerts) {
-          _remoteAlerts
-            ..clear()
-            ..addAll(alerts);
-          notifyListeners();
-        },
-        onError: (_) => toast('Could not load cloud alerts'),
-      );
+      _remoteAlertsSub = cloud!.alertsStream().listen((alerts) {
+        _remoteAlerts
+          ..clear()
+          ..addAll(alerts);
+        notifyListeners();
+      }, onError: (_) => toast('Could not load cloud alerts'));
     }
   }
 
   bool get cloudEnabled => cloud != null;
   SosSession? get session => _sessions.isEmpty ? null : _sessions.last;
   bool get sosActive => session?.active ?? false;
-  int get statActive => _sessions.where((item) => item.active).length +
+  int get statActive =>
+      _sessions.where((item) => item.active).length +
       _remoteAlerts
-          .where((alert) =>
-              alert.active && !_sessions.any((item) => item.id == alert.id))
+          .where(
+            (alert) =>
+                alert.active && !_sessions.any((item) => item.id == alert.id),
+          )
           .length;
-  int get statResolved => _sessions.where((item) => !item.active).length +
+  int get statResolved =>
+      _sessions.where((item) => !item.active).length +
       _remoteAlerts
-          .where((alert) =>
-              !alert.active && !_sessions.any((item) => item.id == alert.id))
+          .where(
+            (alert) =>
+                !alert.active && !_sessions.any((item) => item.id == alert.id),
+          )
           .length;
   int get statGuardians => contacts.length;
   double get pathDistance {
@@ -160,30 +176,30 @@ class AppState extends ChangeNotifier {
   }
 
   List<List<double>> get heatPoints => [
-        ...seedHeat,
-        for (final report in _reports) [report.lat, report.lng, report.w],
-      ];
+    ...seedHeat,
+    for (final report in _reports) [report.lat, report.lng, report.w],
+  ];
 
   List<AlertCardData> get alertCards => [
-        for (final item in _sessions.reversed)
-          AlertCardData(
-            id: item.id,
-            victim: item.victim,
-            startedAt: item.startedAt,
-            points: item.path.length,
-            active: item.active,
-          ),
-        for (final alert in _remoteAlerts)
-          if (!_sessions.any((item) => item.id == alert.id))
-            AlertCardData(
-              id: alert.id,
-              victim: alert.victim,
-              startedAt: alert.startedAt,
-              points: alert.points,
-              active: alert.active,
-              remote: true,
-            ),
-      ];
+    for (final item in _sessions.reversed)
+      AlertCardData(
+        id: item.id,
+        victim: item.victim,
+        startedAt: item.startedAt,
+        points: item.path.length,
+        active: item.active,
+      ),
+    for (final alert in _remoteAlerts)
+      if (!_sessions.any((item) => item.id == alert.id))
+        AlertCardData(
+          id: alert.id,
+          victim: alert.victim,
+          startedAt: alert.startedAt,
+          points: alert.points,
+          active: alert.active,
+          remote: true,
+        ),
+  ];
 
   GuardianTarget? get guardianTarget {
     if (remoteWatchId != null) {
@@ -226,13 +242,14 @@ class AppState extends ChangeNotifier {
 
   void toggleDemo() {
     geo.demo = !geo.demo;
+    hasRealFix = false;
     _geoEngine.setDemo(geo.demo);
-    accText = geo.demo ? 'DEMO' : 'GPS';
+    accText = geo.demo ? 'DEMO' : 'GPS...';
     toast(geo.demo ? 'Demo location enabled' : 'Requesting real GPS');
     notifyListeners();
   }
 
-  void armSos() {
+  void armSos({bool sendExternalAlert = true}) {
     if (sosActive) {
       resolveSos();
       return;
@@ -251,7 +268,33 @@ class AppState extends ChangeNotifier {
     );
     _sessions.add(next);
     _persistSoon();
-    if (cloud != null) unawaited(cloud!.pushSession(next));
+    final cachedPosition = !geo.demo && lastPos != null
+        ? Position(
+            latitude: lastPos!.latitude,
+            longitude: lastPos!.longitude,
+            timestamp: DateTime.now(),
+            accuracy: 0,
+            altitude: 0,
+            altitudeAccuracy: 0,
+            heading: 0,
+            headingAccuracy: 0,
+            speed: spd,
+            speedAccuracy: 0,
+          )
+        : null;
+    if (sendExternalAlert && storage != null) {
+      unawaited(
+        _sosHandler.triggerSos(
+          alertId: next.id,
+          userName: profile.name,
+          phone: profile.phone,
+          guardianNumbers: contacts.map((contact) => contact.p).toList(),
+          cachedPosition: cachedPosition,
+        ),
+      );
+    } else if (cloud != null) {
+      unawaited(cloud!.pushSession(next));
+    }
     _appendPoint();
     toast('SOS active · $id');
     notifyListeners();
@@ -270,7 +313,9 @@ class AppState extends ChangeNotifier {
     }
     active.status = 'resolved';
     active.resolvedAt = DateTime.now().millisecondsSinceEpoch;
-    active.events.add(SosEvent(hhmm(DateTime.now()), 'Alert marked safe', 'safe'));
+    active.events.add(
+      SosEvent(hhmm(DateTime.now()), 'Alert marked safe', 'safe'),
+    );
     _persistSoon();
     if (cloud != null) unawaited(cloud!.resolve(active.id));
     toast('Alert marked resolved');
@@ -378,28 +423,19 @@ class AppState extends ChangeNotifier {
     _remoteAlert = null;
     _remotePath = [];
     _remoteEvents = [];
-    _remoteAlertSub = service.alertDoc(normalized).listen(
-      (alert) {
-        _remoteAlert = alert;
-        if (alert == null) toast('Alert $normalized was not found');
-        notifyListeners();
-      },
-      onError: (_) => toast('Could not watch alert $normalized'),
-    );
-    _remotePathSub = service.alertLocations(normalized).listen(
-      (points) {
-        _remotePath = points;
-        notifyListeners();
-      },
-      onError: (_) => toast('Could not load the alert trail'),
-    );
-    _remoteEventsSub = service.alertEvents(normalized).listen(
-      (events) {
-        _remoteEvents = events;
-        notifyListeners();
-      },
-      onError: (_) => toast('Could not load alert events'),
-    );
+    _remoteAlertSub = service.alertDoc(normalized).listen((alert) {
+      _remoteAlert = alert;
+      if (alert == null) toast('Alert $normalized was not found');
+      notifyListeners();
+    }, onError: (_) => toast('Could not watch alert $normalized'));
+    _remotePathSub = service.alertLocations(normalized).listen((points) {
+      _remotePath = points;
+      notifyListeners();
+    }, onError: (_) => toast('Could not load the alert trail'));
+    _remoteEventsSub = service.alertEvents(normalized).listen((events) {
+      _remoteEvents = events;
+      notifyListeners();
+    }, onError: (_) => toast('Could not load alert events'));
     notifyListeners();
   }
 
@@ -454,9 +490,11 @@ class AppState extends ChangeNotifier {
       _journeyTimer = Timer.periodic(const Duration(seconds: 1), (_) {
         final started = journey?.startedAt;
         if (started != null) {
-          jClockText = fmtEla(Duration(
-            milliseconds: DateTime.now().millisecondsSinceEpoch - started,
-          ));
+          jClockText = fmtEla(
+            Duration(
+              milliseconds: DateTime.now().millisecondsSinceEpoch - started,
+            ),
+          );
           notifyListeners();
         }
       });
@@ -515,12 +553,14 @@ class AppState extends ChangeNotifier {
 
   void addReport(double weight) {
     final point = lastPos ?? blr;
-    _reports.add(UnsafeReport(
-      point.latitude,
-      point.longitude,
-      weight,
-      DateTime.now().millisecondsSinceEpoch,
-    ));
+    _reports.add(
+      UnsafeReport(
+        point.latitude,
+        point.longitude,
+        weight,
+        DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
     _persistSoon();
     if (cloud != null) unawaited(cloud!.addReport(_reports.last));
     toast('Safety report added');
@@ -567,7 +607,7 @@ class AppState extends ChangeNotifier {
   }
 
   void runDemoTour() {
-    if (!sosActive) armSos();
+    if (!sosActive) armSos(sendExternalAlert: false);
     setRole(AppRole.admin);
     toast('Demo alert started');
   }
@@ -606,34 +646,40 @@ class AppState extends ChangeNotifier {
     if (savedContacts is List) {
       contacts
         ..clear()
-        ..addAll(savedContacts.whereType<Map>().map(
-          (item) => GuardianContact.fromJson(Map<String, dynamic>.from(item)),
-        ));
+        ..addAll(
+          savedContacts.whereType<Map>().map(
+            (item) => GuardianContact.fromJson(Map<String, dynamic>.from(item)),
+          ),
+        );
     }
     final savedSessions = saved['sessions'];
     if (savedSessions is List) {
       _sessions
         ..clear()
-        ..addAll(savedSessions.whereType<Map>().map(
-          (item) => SosSession.fromJson(Map<String, dynamic>.from(item)),
-        ));
+        ..addAll(
+          savedSessions.whereType<Map>().map(
+            (item) => SosSession.fromJson(Map<String, dynamic>.from(item)),
+          ),
+        );
     }
     final savedReports = saved['reports'];
     if (savedReports is List) {
       _reports
         ..clear()
-        ..addAll(savedReports.whereType<Map>().map(
-          (item) => UnsafeReport.fromJson(Map<String, dynamic>.from(item)),
-        ));
+        ..addAll(
+          savedReports.whereType<Map>().map(
+            (item) => UnsafeReport.fromJson(Map<String, dynamic>.from(item)),
+          ),
+        );
     }
   }
 
   Map<String, dynamic> _storageSnapshot() => {
-        'profile': profile.toJson(),
-        'contacts': contacts.map((contact) => contact.toJson()).toList(),
-        'sessions': _sessions.map((item) => item.toJson()).toList(),
-        'reports': _reports.map((item) => item.toJson()).toList(),
-      };
+    'profile': profile.toJson(),
+    'contacts': contacts.map((contact) => contact.toJson()).toList(),
+    'sessions': _sessions.map((item) => item.toJson()).toList(),
+    'reports': _reports.map((item) => item.toJson()).toList(),
+  };
 
   void _persistSoon() {
     if (storage == null) return;

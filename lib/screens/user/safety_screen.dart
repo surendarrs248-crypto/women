@@ -18,7 +18,13 @@ class SafetyScreen extends StatelessWidget {
       children: [
         const H1('Area Safety'),
         const SizedBox(height: 4),
-            const Sub('Local demo reports and verified help nearby in Bengaluru.'),
+        Sub(
+          state.geo.demo
+              ? 'Demo position · sample help locations in Bengaluru.'
+              : state.hasRealFix
+              ? 'Live GPS position · sample help locations in Bengaluru.'
+              : 'Waiting for GPS · sample help locations in Bengaluru.',
+        ),
         const SizedBox(height: 12),
         SakhiMap(
           height: 300,
@@ -26,6 +32,7 @@ class SafetyScreen extends StatelessWidget {
           victim: state.lastPos,
           heat: state.heatPoints,
           showHelp: true,
+          follow: !state.geo.demo,
           onHelpTap: (spot) => state.toast('${spot.name} · ${spot.type}'),
         ),
         const SizedBox(height: 12),
@@ -52,10 +59,9 @@ class SafetyScreen extends StatelessWidget {
                         child: SakhiButton(
                           '${helplines[j].number} ${helplines[j].label.substring(helplines[j].number.length).trim()}',
                           style: j == 0 ? BtnStyle.rose : BtnStyle.ghost,
-                          onTap: () => state.launch(Uri(
-                            scheme: 'tel',
-                            path: helplines[j].number,
-                          )),
+                          onTap: () => state.launch(
+                            Uri(scheme: 'tel', path: helplines[j].number),
+                          ),
                         ),
                       ),
                     ],
@@ -112,9 +118,11 @@ class SafetyScreen extends StatelessWidget {
                       IconBtn(
                         '↗',
                         tooltip: 'Directions',
-                        onTap: () => state.launch(Uri.parse(
-                          'https://www.openstreetmap.org/directions?to=${helpSpots[i].point.latitude}%2C${helpSpots[i].point.longitude}',
-                        )),
+                        onTap: () => state.launch(
+                          Uri.parse(
+                            'https://www.openstreetmap.org/directions?to=${helpSpots[i].point.latitude}%2C${helpSpots[i].point.longitude}',
+                          ),
+                        ),
                       ),
                     ],
                   ),

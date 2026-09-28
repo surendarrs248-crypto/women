@@ -54,9 +54,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   H1(state.profile.name.isEmpty ? '—' : state.profile.name),
                 ],
               ),
-                  StatusPill(
-                    state.sosActive ? PillKind.live : PillKind.idle,
-                    state.sosActive ? 'SOS ACTIVE' : 'Demo ready',
+              StatusPill(
+                state.sosActive ? PillKind.live : PillKind.idle,
+                state.sosActive
+                    ? 'SOS ACTIVE'
+                    : state.geo.demo
+                    ? 'Demo ready'
+                    : state.hasRealFix
+                    ? 'GPS ready'
+                    : 'Locating GPS',
               ),
             ],
           ),
@@ -79,9 +85,17 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 14),
           Row(
             children: [
-              _QuickAction('Siren', on: state.sirenOn, onTap: state.toggleSiren),
+              _QuickAction(
+                'Siren',
+                on: state.sirenOn,
+                onTap: state.toggleSiren,
+              ),
               const SizedBox(width: 9),
-              _QuickAction('Flash', on: state.strobeOn, onTap: state.toggleStrobe),
+              _QuickAction(
+                'Flash',
+                on: state.strobeOn,
+                onTap: state.toggleStrobe,
+              ),
               const SizedBox(width: 9),
               _QuickAction('Fake call', onTap: state.startFakeCall),
               const SizedBox(width: 9),
@@ -98,9 +112,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       const H2('Shake-to-SOS'),
                       const SizedBox(height: 3),
-                      Sub(state.motionArmed
-                          ? 'Armed for this session.'
-                          : 'Enable the motion trigger for this session.'),
+                      Sub(
+                        state.motionArmed
+                            ? 'Armed for this session.'
+                            : 'Enable the motion trigger for this session.',
+                      ),
                     ],
                   ),
                 ),
@@ -120,10 +136,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 Eyebrow('How SAKHI works'),
                 SizedBox(height: 9),
                 _Step(C.rose, '1 · Trigger', ' — tap or hold to start SOS.'),
-                _Step(C.amber, '2 · Alert',
-                    ' — your alert and live trail appear in the console.'),
-                _Step(C.guard, '3 · Respond',
-                    ' — guardians can follow your location until you are safe.'),
+                _Step(
+                  C.amber,
+                  '2 · Alert',
+                  ' — your alert and live trail appear in the console.',
+                ),
+                _Step(
+                  C.guard,
+                  '3 · Respond',
+                  ' — guardians can follow your location until you are safe.',
+                ),
               ],
             ),
           ),
@@ -148,44 +170,44 @@ class _QuickAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Expanded(
-        child: InkWell(
+    child: InkWell(
+      borderRadius: BorderRadius.circular(C.rSm),
+      onTap: onTap,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 70),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+        decoration: BoxDecoration(
+          color: on ? C.amber.withValues(alpha: .08) : C.panel,
+          border: Border.all(color: on ? C.amber : C.line),
           borderRadius: BorderRadius.circular(C.rSm),
-          onTap: onTap,
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 70),
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-            decoration: BoxDecoration(
-              color: on ? C.amber.withValues(alpha: .08) : C.panel,
-              border: Border.all(color: on ? C.amber : C.line),
-              borderRadius: BorderRadius.circular(C.rSm),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(_icon, size: 19, color: on ? C.amber : C.muted),
-                const SizedBox(height: 7),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w700,
-                    color: on ? C.amber : C.muted,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ),
-      );
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(_icon, size: 19, color: on ? C.amber : C.muted),
+            const SizedBox(height: 7),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w700,
+                color: on ? C.amber : C.muted,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 
   IconData get _icon => switch (label) {
-        'Siren' => Icons.campaign_outlined,
-        'Flash' => Icons.flash_on_outlined,
-        'Fake call' => Icons.call_outlined,
-        _ => Icons.photo_camera_outlined,
-      };
+    'Siren' => Icons.campaign_outlined,
+    'Flash' => Icons.flash_on_outlined,
+    'Fake call' => Icons.call_outlined,
+    _ => Icons.photo_camera_outlined,
+  };
 }
 
 class _Step extends StatelessWidget {
@@ -197,38 +219,40 @@ class _Step extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 9),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 5, right: 9),
-              child: Container(
-                width: 7,
-                height: 7,
-                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-              ),
-            ),
-            Expanded(
-              child: Text.rich(
-                TextSpan(children: [
-                  TextSpan(
-                    text: title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: C.ink,
-                    ),
-                  ),
-                  TextSpan(text: detail),
-                ]),
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  color: C.muted,
-                  height: 1.45,
-                ),
-              ),
-            ),
-          ],
+    padding: const EdgeInsets.only(bottom: 9),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 5, right: 9),
+          child: Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
         ),
-      );
+        Expanded(
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: C.ink,
+                  ),
+                ),
+                TextSpan(text: detail),
+              ],
+            ),
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: C.muted,
+              height: 1.45,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }

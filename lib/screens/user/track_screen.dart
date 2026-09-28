@@ -35,7 +35,7 @@ class TrackScreen extends StatelessWidget {
           zoom: 15,
           victim: state.lastPos,
           trail: [for (final point in path) LatLng(point.lat, point.lng)],
-          follow: active,
+          follow: active || !state.geo.demo,
         ),
         const SizedBox(height: 10),
         TelemetryBar([
@@ -44,10 +44,13 @@ class TrackScreen extends StatelessWidget {
           (
             'ELAPSED',
             active && state.session != null
-                ? fmtEla(Duration(
-                    milliseconds: DateTime.now().millisecondsSinceEpoch -
-                        state.session!.startedAt,
-                  ))
+                ? fmtEla(
+                    Duration(
+                      milliseconds:
+                          DateTime.now().millisecondsSinceEpoch -
+                          state.session!.startedAt,
+                    ),
+                  )
                 : '00:00',
           ),
           ('SESSION', state.session?.id ?? '—'),
@@ -64,10 +67,7 @@ class TrackScreen extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: SakhiButton(
-                'Share location',
-                onTap: state.shareLocation,
-              ),
+              child: SakhiButton('Share location', onTap: state.shareLocation),
             ),
           ],
         ),

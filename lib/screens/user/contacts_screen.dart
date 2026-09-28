@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants.dart';
 import '../../core/utils.dart';
+import '../../services/sms_fallback_service.dart';
 import '../../state/app_state.dart';
 import '../../widgets/common.dart';
 
@@ -46,6 +47,33 @@ class _ContactsScreenState extends State<ContactsScreen> {
         const SizedBox(height: 4),
         const Sub('Add trusted contacts and choose one primary contact.'),
         const SizedBox(height: 12),
+        SakhiCard(
+          tight: true,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const H2('Prepare emergency alerts'),
+              const SizedBox(height: 4),
+              const Sub(
+                'Allow location and, on Android, direct SMS before an emergency.',
+              ),
+              const SizedBox(height: 10),
+              SakhiButton(
+                'Enable emergency permissions',
+                style: BtnStyle.ghost,
+                block: true,
+                onTap: () async {
+                  final granted =
+                      await SmsFallbackService().requestPermissions();
+                  if (!context.mounted) return;
+                  context.read<AppState>().toast(granted
+                      ? 'Emergency permissions are ready'
+                      : 'Some emergency permissions were not granted');
+                },
+              ),
+            ],
+          ),
+        ),
         SakhiCard(
           child: state.contacts.isEmpty
               ? const Padding(
