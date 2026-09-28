@@ -69,7 +69,9 @@ class GeoEngine {
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        throw StateError('location permission denied');
+        throw StateError(
+          'Location access is blocked. Please allow location access in the browser/device settings, then tap REAL GPS to retry.',
+        );
       }
       _subscription = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
@@ -90,9 +92,13 @@ class GeoEngine {
   }
 
   void _fail(String error) {
-    onError('GPS unavailable ($error); switching to demo');
-    demo = true;
-    start();
+    onError(
+      'GPS unavailable ($error). Allow location access and re-enable REAL GPS.',
+    );
+    if (demo) {
+      // A demo session should only stay in demo if the user explicitly chose it.
+      return;
+    }
   }
 
   void setDemo(bool value) {

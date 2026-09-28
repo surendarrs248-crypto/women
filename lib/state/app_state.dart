@@ -125,9 +125,8 @@ class AppState extends ChangeNotifier {
         notifyListeners();
       },
       onError: (message) {
-        geo.demo = true;
         hasRealFix = false;
-        accText = 'DEMO';
+        accText = 'GPS unavailable';
         toast(message);
       },
     );
