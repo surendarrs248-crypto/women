@@ -169,15 +169,14 @@ class _SakhiMapState extends State<SakhiMap> {
               mapController: _mapController,
               children: [
                 TileLayer(
-                  urlTemplate: 'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-                  retinaMode: RetinaMode.isHighDensity(context),
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   userAgentPackageName: 'com.sakhi.women',
                 ),
                 if (circles.isNotEmpty) CircleLayer(circles: circles),
                 if (polylines.isNotEmpty) PolylineLayer(polylines: polylines),
                 if (markers.isNotEmpty) MarkerLayer(markers: markers),
                 const SimpleAttributionWidget(
-                  source: Text('© OpenStreetMap contributors © CARTO'),
+                  source: Text('© OpenStreetMap contributors'),
                 ),
               ],
             ),
